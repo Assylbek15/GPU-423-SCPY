@@ -1,20 +1,21 @@
 #include "Police.h"
 #include "Criminal.h"
-#include <thread>
+#include <iostream>
 
 void Police::giveRansom(Criminal &criminal)
 {
     {
-        while (!criminal.isHostageReleased())
-        {
-            std::cout << "Police: waiting criminal to release hostage!\n";
-        }
+        std::lock_guard dataLock{m_mutex};
+        moneySent = true;
         std::cout << "Police: sent money!\n";
-        this->moneySent = true;
     }
+    m_cv.notify_one();
+
+    criminal.waitUntilHostageReleased();
 }
 
-bool Police::isMoneySent()
+void Police::waitUntilMoneySent()
 {
-    return this->moneySent;
+    std::unique_lock dataLock{m_mutex};
+    m_cv.wait(dataLock, [this] { return moneySent; });
 }
