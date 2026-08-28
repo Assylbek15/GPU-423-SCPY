@@ -2,21 +2,20 @@
 #include <thread>
 #include <vector>
 #include "Starvation.h"
-#include <condition_variable>
-#include <mutex>
 
+// A condition variable schedules the threads in round-robin order, giving every thread a turn.
+// Advancing the shared turn after each increment prevents any thread from monopolizing the mutex.
 int main()
 {
-    std::cout<<"Main thread start !\n";    
+    std::cout<<"Main thread start !\n";
     Starvation starvation;
-    int size = 4;
-    std::vector<std::jthread> threads;
-    std::this_thread::sleep_for(std::chrono::milliseconds{100});
-    for (int i{0}; i < 4; ++i)
     {
-        threads.push_back(std::jthread{&Starvation::incrementValue, &starvation, i});
+        std::vector<std::jthread> threads;
+        for (int i{0}; i < Starvation::numberOfThreads; ++i)
+        {
+            threads.push_back(std::jthread{&Starvation::incrementValue, &starvation, i});
+        }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds{100});
     std::cout<<"Main thread end !\n";
     return 0;
 }

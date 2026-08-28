@@ -1,29 +1,33 @@
 #pragma once
 #include <condition_variable>
-#include <mutex>
 #include <iostream>
-#include <string>
+#include <mutex>
 #include <thread>
-#include <chrono>
-#include <unistd.h>
 
 class Starvation
 {
     public:
+        static constexpr int numberOfThreads = 4;
+
         void incrementValue(int threadId)
         {
             int value = 0;
-            while(value < 4)
+            while (value < 4)
             {
                 {
-                    std::unique_lock<std::mutex> dataLock{m_mutex};
-                    value++;
+                    std::unique_lock dataLock{m_mutex};
+                    m_cv.wait(dataLock, [this, threadId] { return currentTurn == threadId; });
+
+                    ++value;
                     std::cout<<"Thread "<<threadId<<" with id "<<std::this_thread::get_id()<<" changed the value to "<<value<<"\n";
-                    std::this_thread::sleep_for(std::chrono::milliseconds{100});
+                    currentTurn = (currentTurn + 1) % numberOfThreads;
                 }
+                m_cv.notify_all();
             }
         }
-        private:
-            std::condition_variable m_cv;
-            std::mutex m_mutex;
+
+    private:
+        std::condition_variable m_cv;
+        std::mutex m_mutex;
+        int currentTurn = 0;
 };
