@@ -1,4 +1,14 @@
 #include <stdio.h>
+#include <stdlib.h>
+
+void checkCuda(cudaError_t result, const char *operation)
+{
+  if (result != cudaSuccess)
+  {
+    fprintf(stderr, "%s failed: %s\n", operation, cudaGetErrorString(result));
+    exit(1);
+  }
+}
 
 void initWith(float num, float *a, int N)
 {
@@ -8,9 +18,12 @@ void initWith(float num, float *a, int N)
   }
 }
 
-void addVectorsInto(float *result, float *a, float *b, int N)
+__global__ void addVectorsInto(float *result, const float *a, const float *b, int N)
 {
-  for(int i = 0; i < N; ++i)
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  int stride = gridDim.x * blockDim.x;
+
+  for(int i = index; i < N; i += stride)
   {
     result[i] = a[i] + b[i];
   }
@@ -38,19 +51,24 @@ int main()
   float *b;
   float *c;
 
-  a = (float *)malloc(size);
-  b = (float *)malloc(size);
-  c = (float *)malloc(size);
+  checkCuda(cudaMallocManaged(&a, size), "allocate a");
+  checkCuda(cudaMallocManaged(&b, size), "allocate b");
+  checkCuda(cudaMallocManaged(&c, size), "allocate c");
 
   initWith(3, a, N);
   initWith(4, b, N);
   initWith(0, c, N);
 
-  addVectorsInto(c, a, b, N);
+  const int threads_per_block = 256;
+  const int number_of_blocks = (N + threads_per_block - 1) / threads_per_block;
+
+  addVectorsInto<<<number_of_blocks, threads_per_block>>>(c, a, b, N);
+  checkCuda(cudaGetLastError(), "addVectorsInto launch");
+  checkCuda(cudaDeviceSynchronize(), "addVectorsInto execution");
 
   checkElementsAre(7, c, N);
 
-  free(a);
-  free(b);
-  free(c);
+  checkCuda(cudaFree(a), "free a");
+  checkCuda(cudaFree(b), "free b");
+  checkCuda(cudaFree(c), "free c");
 }

@@ -1,4 +1,14 @@
 #include <stdio.h>
+#include <stdlib.h>
+
+void checkCuda(cudaError_t result, const char *operation)
+{
+  if (result != cudaSuccess)
+  {
+    fprintf(stderr, "%s failed: %s\n", operation, cudaGetErrorString(result));
+    exit(1);
+  }
+}
 
 void init(int *a, int N)
 {
@@ -16,7 +26,7 @@ void doubleElements(int *a, int N)
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = gridDim.x * blockDim.x;
 
-  for (int i = idx; i < N + stride; i += stride)
+  for (int i = idx; i < N; i += stride)
   {
     a[i] *= 2;
   }
@@ -44,18 +54,19 @@ int main()
   int *a;
 
   size_t size = N * sizeof(int);
-  cudaMallocManaged(&a, size);
+  checkCuda(cudaMallocManaged(&a, size), "cudaMallocManaged");
 
   init(a, N);
 
-  size_t threads_per_block = 2048;
+  size_t threads_per_block = 256;
   size_t number_of_blocks = 32;
 
   doubleElements<<<number_of_blocks, threads_per_block>>>(a, N);
-  cudaDeviceSynchronize();
+  checkCuda(cudaGetLastError(), "doubleElements launch");
+  checkCuda(cudaDeviceSynchronize(), "doubleElements execution");
 
   bool areDoubled = checkElementsAreDoubled(a, N);
   printf("All elements were doubled? %s\n", areDoubled ? "TRUE" : "FALSE");
 
-  cudaFree(a);
+  checkCuda(cudaFree(a), "cudaFree");
 }

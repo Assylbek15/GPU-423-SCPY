@@ -18,9 +18,10 @@ void init(int *a, int N)
 __global__
 void doubleElements(int *a, int N)
 {
-  int i;
-  i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < N)
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  int stride = gridDim.x * blockDim.x;
+
+  for (; i < N; i += stride)
   {
     a[i] *= 2;
   }

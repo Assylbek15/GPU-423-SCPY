@@ -11,7 +11,11 @@
 __global__ void initializeElementsTo(int initialValue, int *a, int N)
 {
   int i = threadIdx.x + blockIdx.x * blockDim.x;
-  a[i] = initialValue;
+
+  if (i < N)
+  {
+    a[i] = initialValue;
+  }
 }
 
 int main()
@@ -40,7 +44,7 @@ int main()
    * the fixed values for `N` and `threads_per_block`.
    */
 
-  size_t number_of_blocks = 0;
+  size_t number_of_blocks = (N + threads_per_block - 1) / threads_per_block;
 
   int initialValue = 6;
 
